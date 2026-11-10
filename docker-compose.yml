@@ -1,0 +1,55 @@
+services:
+  app:
+    build: .
+    container_name: arena_app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=cache
+    networks:
+      - arena_net
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+
+  db:
+    image: postgres:15-alpine
+    container_name: arena_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - arena_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cache:
+    image: redis:7-alpine
+    container_name: arena_cache
+    networks:
+      - arena_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  arena_net:
+    driver: bridge
+
+volumes:
+  pgdata:
